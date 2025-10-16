@@ -28,7 +28,7 @@
         "/home/sol-73/Niloy/My_git/mcp-poc/server/google_sheet.py"
       ],
       "env": {
-        "SERVICE_ACCOUNT_PATH": "/home/sol-73/Niloy/My_git/mcp-poc/keys/mcp-sheets-key-pivotly.json",
+        "SERVICE_ACCOUNT_PATH": "keys/mcp-sheets-key-pivotly.json",
         "SPREADSHEET_ID": "1paCuL1BzJv8UadKdIjZl9Lee8BlECBGQyCDJOuEb-8k"
       }
     },
