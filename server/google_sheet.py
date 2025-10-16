@@ -930,4 +930,4 @@ def share_spreadsheet(spreadsheet_id: str,
 
 def main():
     # Run the server
-    mcp.run()
+    mcp.run(transport="http", host="0.0.0.0", port=8003)

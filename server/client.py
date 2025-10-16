@@ -13,7 +13,7 @@ async def run_memory_chat():
     os.environ["OPENAI_API_KEY"]=os.getenv("OPENAI_API_KEY")
 
     # Config file path - change this to your config file
-    config_file = "server\mcpconfig.json"
+    config_file = "server/mcpconfig.json"
 
     print("Initializing chat...")
 

@@ -5,8 +5,7 @@ from mcp.server.fastmcp import FastMCP
 # Create an MCP server
 mcp = FastMCP(
     name="Knowledge Base",
-    host="0.0.0.0",  # only used for SSE transport (localhost)
-    port=8050,  # only used for SSE transport (set this to any port)
+    host="0.0.0.0", 
 )
 
 
@@ -50,4 +49,4 @@ def get_knowledge_base() -> str:
 
 # Run the server
 if __name__ == "__main__":
-    mcp.run(transport="stdio")
+    mcp.run(transport="http", host="0.0.0.0", port=8001)

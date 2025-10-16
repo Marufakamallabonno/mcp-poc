@@ -5,14 +5,18 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "aiosqlite>=0.21.0",
     "asyncio>=3.4.3",
+    "fastmcp>=2.12.4",
     "google-api-python-client>=2.184.0",
     "google-auth>=2.41.1",
     "google-auth-oauthlib>=1.2.2",
+    "httpx>=0.28.1",
     "langchain>=0.3.23",
     "langchain-groq>=0.3.2",
     "langchain-openai>=0.3.35",
     "mcp-use>=1.2.7",
     "mcp[cli]>=1.6.0",
     "nest-asyncio>=1.6.0",
+    "python-dotenv>=1.0.0",
 ]

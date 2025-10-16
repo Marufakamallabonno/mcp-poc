@@ -31,3 +31,4 @@ Thumbs.db
 *.log
 *.tmp
 *.lock
+keys/mcp-sheets-key-pivotly.json

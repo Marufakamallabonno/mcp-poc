@@ -60,3 +60,6 @@ def echo_resource(message: str) -> str:
     """Echo a message as a resource"""
     return f"Resource echo: {message}"
 
+
+if __name__ == "__main__": 
+    mcp.run(transport="http", host="0.0.0.0", port=8002)
