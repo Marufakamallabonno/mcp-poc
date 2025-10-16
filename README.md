@@ -1,6 +1,6 @@
-# MCP Crash Course
+# 🧠 Model Context Protocol (MCP) – Local & Deployed Integration
 
-A comprehensive collection of **Model Context Protocol (MCP)** servers built with FastMCP, demonstrating how to create and integrate AI-powered tools with LLMs like Claude and GPT-4.
+A comprehensive collection of **Model Context Protocol (MCP)** servers built with **FastMCP**, demonstrating how to create, integrate, and deploy AI-powered tools that work seamlessly with LLMs such as **Claude**, **GPT-4**, and **Gemini**.
 
 ## 🚀 Features
 
@@ -55,7 +55,7 @@ This will install all required packages from `pyproject.toml`.
 
 ### 1. MCP Servers Configuration
 
-The main configuration file is located at `server/mcpconfig.json`. Update the paths if needed:
+The main configuration file is located at `server/mcpconfig.json` If you want to use it locally. Update the paths if needed:
 
 ```json
 {
@@ -230,27 +230,6 @@ get_alerts(state="CA")
 
 **Data:** Stored in `server/data/kb.json`
 
-## 📁 Project Structure
-
-```
-MCP-CRASH-Course/
-├── server/
-│   ├── weather.py              # Weather MCP server
-│   ├── google_sheet.py         # Google Sheets MCP server
-│   ├── expense_tracker.py      # Expense tracker MCP server
-│   ├── rag.py                  # Knowledge base RAG server
-│   ├── client.py               # Interactive LLM client
-│   ├── mcpconfig.json          # MCP servers configuration
-│   ├── data/
-│   │   └── kb.json            # Knowledge base data
-│   ├── keys/                   # Google credentials (gitignored)
-│   └── expense.db              # Expense tracker database
-├── mcpserver/                  # Additional server implementations
-├── pyproject.toml              # Python dependencies
-├── uv.lock                     # Dependency lock file
-├── .env                        # Environment variables (create this)
-└── README.md                   # This file
-```
 
 ## 🔧 Troubleshooting
 
