@@ -1,0 +1,33 @@
+# Ignore Python cache / compiled files
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Ignore virtual environment directories
+.env/
+.venv/
+venv/
+
+# Keys, credentials, secret JSON, token files
+keys/
+*.key.json
+*.service-account.json
+token.json
+credentials.json
+#*.json      # If you want to ignore all .json except the ones you want (be careful)
+# You can explicitly whitelist certain json if needed, e.g.
+# !mcpconfig.json
+# !*.template.json
+
+# Ignore .env file with environment variables
+.env
+
+# OS / system files
+.DS_Store
+Thumbs.db
+
+# Logs and runtime files
+*.log
+*.tmp
+*.lock
