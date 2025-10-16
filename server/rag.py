@@ -1,6 +1,6 @@
 import os
 import json
-from fastmcp import FastMCP
+from mcp.server.fastmcp import FastMCP
 
 # Create an MCP server
 mcp = FastMCP(name="Knowledge Base")

@@ -42,6 +42,17 @@
         "run",
         "/home/sol-73/Niloy/My_git/mcp-poc/server/rag.py"
       ]
+    },
+    "expense_tracker": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--with",
+        "mcp[cli]",
+        "mcp",
+        "run",
+        "/home/sol-73/Niloy/My_git/mcp-poc/server/expense_tracker.py"
+      ]
     }
   }
 }

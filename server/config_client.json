@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "weather": {
+      "transport": "http",
+      "url": "https://mcp-poc-multi-tool.fastmcp.app/mcp"
+    },
+    "rag": {
+      "transport": "http",
+      "url": "https://mcp-poc-rag.fastmcp.app/mcp"
+    },
+    "expense_tracker": {
+      "transport": "http",
+      "url": "https://expense-tracker-by-niloy.fastmcp.app/mcp"
+    }
+  }
+}
