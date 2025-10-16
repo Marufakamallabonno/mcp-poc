@@ -31,6 +31,17 @@
         "SERVICE_ACCOUNT_PATH": "D:\\Personal\\MCP\\MCP-CRASH-Course\\server\\keys\\mcp-sheets-key-pivotly.json",
         "SPREADSHEET_ID": "1paCuL1BzJv8UadKdIjZl9Lee8BlECBGQyCDJOuEb-8k"
       }
+    },
+    "rag": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--with",
+        "mcp[cli]",
+        "mcp",
+        "run",
+        "D:\\Personal\\MCP\\MCP-CRASH-Course\\server\\rag.py"
+      ]
     }
   }
 }
