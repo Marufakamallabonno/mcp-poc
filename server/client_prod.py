@@ -1,9 +1,12 @@
 import asyncio
+from mcp.types import Tool
 import nest_asyncio
 from dotenv import load_dotenv
 import os
 from langchain_openai import ChatOpenAI
 from mcp_use import MCPAgent, MCPClient
+from FastMCP import Client
+from FastMCP.types import Tool
 
 # Load environment variables
 load_dotenv()
@@ -36,12 +39,16 @@ async def main():
     
     try:
         # Create MCP client from config file
-        client = MCPClient.from_config_file(config_file)
+        client = Client.from_config_file(config_file)
+        tool_objs = await client.list_tools()
+        available_tools = [{"name": t.name, "description": t.description, "input_schema": t.inputSchema}
+                       for t in tool_objs]
         
         # Initialize GPT as the LLM
         llm = ChatOpenAI(
             model="gpt-4o-mini",  # Use gpt-4o-mini for cost efficiency
-            temperature=0.7
+            temperature=0.7,
+            tools = available_tools
         )
         
         # Create MCP agent with GPT integration
