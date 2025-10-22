@@ -1,0 +1,8 @@
+streamlit>=1.29.0
+mcp>=0.1.0
+mcp-use>=0.1.0
+langchain-openai>=0.1.0
+python-dotenv>=1.0.0
+deepdiff>=6.7.1
+json-patch>=1.33
+fastmcp>=0.1.0

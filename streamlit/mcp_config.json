@@ -1,0 +1,7 @@
+{
+  "json_server": {
+    "command": "python",
+    "args": ["-m", "streamlit.json_mcp_server"],
+    "cwd": "/home/ahmed/Projects/MCP/mcp-poc"
+  }
+}

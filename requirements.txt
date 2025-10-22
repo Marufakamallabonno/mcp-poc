@@ -1,0 +1,13 @@
+# Core requirements
+python-dotenv>=1.0.0  # IMPORTANT: For loading .env file with API keys
+
+# MCP and async requirements
+mcp>=1.10.1
+nest-asyncio>=1.6.0
+
+# Azure OpenAI and HTTP client
+aiohttp>=3.9.0
+requests>=2.31.0
+
+# Optional: If you want to use the official Azure OpenAI SDK later
+# openai>=1.0.0
