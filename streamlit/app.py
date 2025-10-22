@@ -1,76 +1,102 @@
+#!/usr/bin/env python3
+"""
+Streamlit Chat UI with Live JSON State Updates via MCP
+"""
+
 import streamlit as st
 import json
 import asyncio
-from datetime import datetime
 import os
-from pathlib import Path
-from typing import Dict, Any, Optional
 import sys
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
+from pathlib import Path
+from datetime import datetime
+import copy
+from typing import Dict, Any, Optional
+import nest_asyncio
 from dotenv import load_dotenv
-from langchain_openai import ChatOpenAI
-from deepdiff import DeepDiff
 
-# Try to import MCP components
-try:
-    from mcp_use import MCPAgent, MCPClient
-    MCP_AVAILABLE = True
-except ImportError:
-    MCP_AVAILABLE = False
-    st.warning("MCP components not available. Using mock mode.")
+# Add parent directory to path for imports
+sys.path.append(str(Path(__file__).parent.parent / "server"))
+
+from mcp_use import MCPAgent, MCPClient
+from langchain_openai import ChatOpenAI
+
+# Apply nest_asyncio to allow asyncio in Streamlit
+nest_asyncio.apply()
 
 # Load environment variables
 load_dotenv()
 
-# Page config
+# Page configuration
 st.set_page_config(
     page_title="JSON State Chat Manager",
     page_icon="🔄",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
-# Custom CSS for better styling
+# Custom CSS for better UI
 st.markdown("""
 <style>
-    .stChat {
-        height: 600px;
-    }
     .json-container {
         background-color: #1e1e1e;
-        border-radius: 10px;
-        padding: 20px;
-        font-family: 'Monaco', 'Courier New', monospace;
         color: #d4d4d4;
-        height: 600px;
+        padding: 20px;
+        border-radius: 10px;
+        font-family: 'Courier New', monospace;
+        font-size: 14px;
+        max-height: 600px;
         overflow-y: auto;
     }
-    .diff-container {
-        background-color: #2d2d30;
-        border-radius: 5px;
+    .chat-message {
         padding: 10px;
-        margin-top: 10px;
-        font-family: 'Monaco', 'Courier New', monospace;
-        font-size: 12px;
+        border-radius: 10px;
+        margin-bottom: 10px;
+    }
+    .user-message {
+        background-color: #2b5ce6;
+        color: white;
+        text-align: right;
+    }
+    .assistant-message {
+        background-color: #f0f0f0;
+        color: #333;
     }
     .diff-added {
-        color: #4ec9b0;
-        background-color: #003b00;
+        background-color: #d4f4dd;
+        color: #22863a;
+        padding: 2px 4px;
+        border-radius: 3px;
     }
     .diff-removed {
-        color: #f48771;
-        background-color: #3b0000;
+        background-color: #ffeef0;
+        color: #d73a49;
+        padding: 2px 4px;
+        border-radius: 3px;
     }
     .diff-modified {
-        color: #dcdcaa;
-        background-color: #3b3b00;
+        background-color: #fff3cd;
+        color: #856404;
+        padding: 2px 4px;
+        border-radius: 3px;
+    }
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 24px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        height: 50px;
+        padding-left: 20px;
+        padding-right: 20px;
     }
 </style>
 """, unsafe_allow_html=True)
 
 # Initialize session state
+if 'messages' not in st.session_state:
+    st.session_state.messages = []
+
 if 'json_state' not in st.session_state:
-    # Load initial JSON
+    # Initialize with the provided example JSON
     st.session_state.json_state = {
         "specs": {
             "Overview": {
@@ -93,84 +119,22 @@ if 'json_state' not in st.session_state:
                 "DirectAPICall": "https://api.pivotly.ai/prompt/run",
                 "PromptAsStepInPivotlyConnect": "Available under AI Tools → Prompt Step"
             },
-            "PromptConfigurationUISpecification": {
-                "Tabs": ["MetaData", "Instructions", "APIandSecurity", "LLMandOutput", "Testing"]
-            },
             "PromptMetaDataTab": {
                 "PromptName": "Submittal Requirement Extractor",
                 "PromptCode": "SUBMITTAL_EXTRACT_V1",
                 "Tags": ["construction", "contract", "AI"],
                 "CreatedBy": "Ahmed Rafi",
                 "VersionNumber": "1.0"
-            },
-            "InstructionsPromptTemplateTab": {
-                "PromptTemplateText": "Analyze the provided construction contract and extract all submittal requirements.",
-                "Variables": [
-                    {
-                        "VariableName": "document_text",
-                        "Description": "Full text of the contract document",
-                        "Required": True
-                    }
-                ]
-            },
-            "APIandSecurity": {
-                "APIExampleCall": "curl -X POST https://api.pivotly.ai/prompt/run -d '{\"prompt_id\":\"SUBMITTAL_EXTRACT_V1\",\"variables\":{\"document_text\":\"...\"}}'",
-                "SystemAccess": "Authenticated API users",
-                "ParticipationRules": "Admin and Project Engineers"
-            },
-            "LLMandOutputSettings": {
-                "LLMProvider": "OpenAI",
-                "Model": "gpt-4-turbo",
-                "Temperature": 0.3,
-                "MaxTokens": 1024,
-                "ResponseType": "JSON",
-                "IncludeSourceMetadata": True
-            },
-            "Testing": {
-                "Enabled": True,
-                "SampleInput": {
-                    "document_text": "This contract requires submission of safety plans and material compliance certificates."
-                },
-                "ExpectedOutput": {
-                    "submittals": ["Safety Plan", "Material Compliance Certificate"]
-                }
-            },
-            "MonitoringAndUsage": {
-                "AuditLogging": True,
-                "UsageMetrics": "Enabled",
-                "QuotaLimit": "100 calls/day"
-            },
-            "Navigation": {
-                "FigmaReference": "https://www.figma.com/design/wx4YMHcQFaxpSENQSMwQZD/Pivotly?node-id=142-94&p=f"
-            },
-            "Execution": {
-                "description": "At runtime, variables are replaced and the final prompt is sent to the selected LLM for response."
-            },
-            "ExampleUseCase": {
-                "client": "J.F. Brennan",
-                "purpose": "Extract and manage submittal requirements from construction proposals."
-            },
-            "LaterRequirementsAndFeatures": {
-                "SupervisoryAICheck": "Optional QA validation for AI responses.",
-                "RAGQueries": "Enable retrieval from stored Pivotly documents."
-            },
-            "SupervisoryAICheck": {
-                "Enabled": False,
-                "EvaluationCriteria": "Keyword presence and semantic similarity",
-                "FallbackAction": "RetryWithModifiedInput"
-            },
-            "RAGQueries": {
-                "Enabled": True,
-                "Query": "Find related project specifications for submittal validation."
             }
         }
     }
+    # Save initial state to file
+    state_file = Path(__file__).parent / "state.json"
+    with open(state_file, 'w') as f:
+        json.dump(st.session_state.json_state, f, indent=2)
 
-if 'messages' not in st.session_state:
-    st.session_state.messages = []
-
-if 'diff_history' not in st.session_state:
-    st.session_state.diff_history = []
+if 'history' not in st.session_state:
+    st.session_state.history = []
 
 if 'mcp_client' not in st.session_state:
     st.session_state.mcp_client = None
@@ -178,225 +142,342 @@ if 'mcp_client' not in st.session_state:
 if 'mcp_agent' not in st.session_state:
     st.session_state.mcp_agent = None
 
-# Save initial state to file for MCP server
-state_file = Path("streamlit/state.json")
-with open(state_file, 'w') as f:
-    json.dump(st.session_state.json_state, f, indent=2)
+# MCP Configuration file path
+MCP_CONFIG_FILE = Path(__file__).parent / "mcp_config.json"
 
-def format_diff(diff: Dict) -> str:
-    """Format diff for display"""
-    if not diff:
-        return "No changes"
+def create_mcp_config():
+    """Create MCP configuration file for JSON state server"""
+    config = {
+        "mcpServers": {
+            "json_state": {
+                "command": "uv",
+                "args": [
+                    "run",
+                    "--with",
+                    "mcp[cli]",
+                    "mcp",
+                    "run",
+                    str(Path(__file__).parent / "json_state_server.py")
+                ]
+            }
+        }
+    }
     
-    formatted = []
+    with open(MCP_CONFIG_FILE, 'w') as f:
+        json.dump(config, f, indent=2)
     
-    if 'values_changed' in diff:
-        for path, change in diff['values_changed'].items():
-            formatted.append(f"**Modified:** `{path}`")
-            formatted.append(f"  - Old: `{change.get('old_value')}`")
-            formatted.append(f"  - New: `{change.get('new_value')}`")
-    
-    if 'dictionary_item_added' in diff:
-        for path in diff['dictionary_item_added']:
-            formatted.append(f"**Added:** `{path}`")
-    
-    if 'dictionary_item_removed' in diff:
-        for path in diff['dictionary_item_removed']:
-            formatted.append(f"**Removed:** `{path}`")
-    
-    return "\n".join(formatted) if formatted else "No changes"
+    return MCP_CONFIG_FILE
 
 async def initialize_mcp():
     """Initialize MCP client and agent"""
-    if st.session_state.mcp_client is None:
-        # Create MCP config for our JSON server
-        config = {
-            "json_server": {
-                "command": "python",
-                "args": ["-m", "streamlit.json_mcp_server"],
-                "cwd": "/home/ahmed/Projects/MCP/mcp-poc"
-            }
-        }
+    try:
+        # Create config if it doesn't exist
+        if not MCP_CONFIG_FILE.exists():
+            create_mcp_config()
         
-        # Save config
-        config_file = Path("streamlit/mcp_config.json")
-        with open(config_file, 'w') as f:
-            json.dump(config, f, indent=2)
-        
-        # Initialize client
-        st.session_state.mcp_client = MCPClient.from_config_file(str(config_file))
+        # Initialize MCP client
+        client = MCPClient.from_config_file(str(MCP_CONFIG_FILE))
         
         # Initialize LLM
-        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+        llm = ChatOpenAI(
+            model="gpt-4o-mini",
+            temperature=0.3,
+            openai_api_key=os.getenv("OPENAI_API_KEY")
+        )
         
-        # Create agent with custom system prompt
-        system_prompt = """You are a JSON State Manager assistant. Your role is to help users modify a JSON configuration state through natural language commands.
+        # Create MCP agent with custom system prompt
+        system_prompt = """You are a JSON State Manager assistant. Your role is to help users modify a JSON state object through natural language commands.
 
-When users ask to modify the JSON, use the appropriate MCP tools:
-- update_value: To change an existing value
-- add_key: To add a new key-value pair
-- delete_key: To remove a key
-- rename_key: To rename a key
-- update_multiple: For multiple changes at once
+You have access to the following MCP tools:
+- update_value: Update a value at a specific path (e.g., "specs.Overview.description")
+- add_key: Add a new key to an object
+- delete_key: Remove a key from the JSON
+- rename_key: Rename an existing key
+- get_state: Get the current JSON state
+- get_history: View recent changes
 
-Always:
-1. Understand the user's intent clearly
-2. Use dot notation for paths (e.g., "specs.Overview.description")
-3. Preserve data types (strings, numbers, booleans, arrays, objects)
-4. Confirm the changes made
-5. Be concise in your responses
+When users ask to modify the JSON, interpret their intent and use the appropriate tool. Always be precise with paths using dot notation.
 
 Examples:
-- "Change the prompt name to 'New Analyzer'" → update_value("specs.PromptAsConfigurableObject.PromptName", "New Analyzer")
-- "Add a new field called version with value 2.0" → add_key("specs", "version", "2.0")
-- "Delete the FigmaReference" → delete_key("specs.Navigation.FigmaReference")
-- "Rename CreatedBy to Author" → rename_key("specs.PromptMetaDataTab.CreatedBy", "Author")
-"""
-        
-        st.session_state.mcp_agent = MCPAgent(
-            llm=llm,
-            client=st.session_state.mcp_client,
-            system_prompt=system_prompt,
-            max_steps=10
-        )
-        
-        # Set initial state in MCP server
-        await st.session_state.mcp_agent.run(
-            f"Set the initial state to: {json.dumps(st.session_state.json_state)}"
-        )
+- "Change the description to 'New description'" → Use update_value with the correct path
+- "Add a new field called Version with value 2.0" → Use add_key
+- "Remove the SecurityRules field" → Use delete_key
+- "Rename PromptName to Name" → Use rename_key
 
-async def process_message(user_input: str) -> str:
+After each operation, confirm what was changed. Be concise and helpful."""
+        
+        agent = MCPAgent(
+            llm=llm,
+            client=client,
+            max_steps=10,
+            memory_enabled=True,
+            system_prompt=system_prompt
+        )
+        
+        return client, agent
+    except Exception as e:
+        st.error(f"Failed to initialize MCP: {e}")
+        return None, None
+
+async def process_message(user_input: str):
     """Process user message through MCP agent"""
     try:
+        # Initialize MCP if not already done
+        if st.session_state.mcp_agent is None:
+            with st.spinner("Initializing MCP connection..."):
+                client, agent = await initialize_mcp()
+                if agent:
+                    st.session_state.mcp_client = client
+                    st.session_state.mcp_agent = agent
+                else:
+                    return "Failed to initialize MCP. Please check your configuration."
+        
         # Get response from agent
         response = await st.session_state.mcp_agent.run(user_input)
         
-        # Load updated state from file
-        with open(state_file, 'r') as f:
-            new_state = json.load(f)
-        
-        # Calculate diff
-        diff = DeepDiff(st.session_state.json_state, new_state, verbose_level=2)
-        
-        if diff:
-            # Update session state
-            old_state = st.session_state.json_state.copy()
-            st.session_state.json_state = new_state
-            
-            # Add to diff history
-            st.session_state.diff_history.append({
-                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "command": user_input,
-                "diff": diff.to_dict() if diff else {},
-                "old_state": old_state,
-                "new_state": new_state
-            })
+        # Load the updated state from file
+        state_file = Path(__file__).parent / "state.json"
+        if state_file.exists():
+            with open(state_file, 'r') as f:
+                st.session_state.json_state = json.load(f)
         
         return response
-        
     except Exception as e:
-        return f"Error: {str(e)}"
+        return f"Error processing message: {str(e)}"
 
-# Main UI
+def display_json_diff(before: Dict, after: Dict):
+    """Display the difference between two JSON states"""
+    def flatten_dict(d: Dict, parent_key: str = '') -> Dict:
+        items = []
+        for k, v in d.items():
+            new_key = f"{parent_key}.{k}" if parent_key else k
+            if isinstance(v, dict):
+                items.extend(flatten_dict(v, new_key).items())
+            else:
+                items.append((new_key, v))
+        return dict(items)
+    
+    flat_before = flatten_dict(before)
+    flat_after = flatten_dict(after)
+    
+    changes = []
+    
+    # Find added keys
+    for key in flat_after:
+        if key not in flat_before:
+            changes.append(f'<span class="diff-added">+ {key}: {json.dumps(flat_after[key])}</span>')
+    
+    # Find removed keys
+    for key in flat_before:
+        if key not in flat_after:
+            changes.append(f'<span class="diff-removed">- {key}: {json.dumps(flat_before[key])}</span>')
+    
+    # Find modified values
+    for key in flat_before:
+        if key in flat_after and flat_before[key] != flat_after[key]:
+            changes.append(f'<span class="diff-modified">~ {key}: {json.dumps(flat_before[key])} → {json.dumps(flat_after[key])}</span>')
+    
+    if changes:
+        st.markdown("**Changes:**", unsafe_allow_html=True)
+        for change in changes:
+            st.markdown(change, unsafe_allow_html=True)
+
+# Main UI Layout
 st.title("🔄 JSON State Chat Manager")
-st.markdown("Chat with AI to modify your JSON configuration in real-time")
+st.markdown("Chat with AI to modify your JSON state in real-time")
 
-# Create two columns
+# Create two columns for chat and JSON display
 col1, col2 = st.columns([1, 1])
 
-# Left column - Chat Interface
+# Left column: Chat Interface
 with col1:
     st.subheader("💬 Chat Interface")
     
-    # Display chat messages
+    # Chat container
     chat_container = st.container(height=500)
     
     with chat_container:
+        # Display chat messages
         for message in st.session_state.messages:
-            with st.chat_message(message["role"]):
-                st.markdown(message["content"])
+            if message["role"] == "user":
+                st.markdown(f'<div class="chat-message user-message">👤 {message["content"]}</div>', unsafe_allow_html=True)
+            else:
+                st.markdown(f'<div class="chat-message assistant-message">🤖 {message["content"]}</div>', unsafe_allow_html=True)
     
     # Chat input
-    if prompt := st.chat_input("Type a command (e.g., 'Change the prompt name to New Analyzer')"):
-        # Add user message
-        st.session_state.messages.append({"role": "user", "content": prompt})
+    user_input = st.chat_input("Type your command (e.g., 'Change the description to...')")
+    
+    if user_input:
+        # Store the previous state for comparison
+        before_state = copy.deepcopy(st.session_state.json_state)
         
-        # Process with MCP
+        # Add user message to history
+        st.session_state.messages.append({"role": "user", "content": user_input})
+        
+        # Process the message
         with st.spinner("Processing..."):
-            # Initialize MCP if needed
-            if st.session_state.mcp_agent is None:
-                asyncio.run(initialize_mcp())
-            
-            # Get response
-            response = asyncio.run(process_message(prompt))
-            
-            # Add assistant message
-            st.session_state.messages.append({"role": "assistant", "content": response})
+            response = asyncio.run(process_message(user_input))
         
-        # Rerun to update UI
+        # Add assistant response to history
+        st.session_state.messages.append({"role": "assistant", "content": response})
+        
+        # Check if state changed and log the diff
+        if st.session_state.json_state != before_state:
+            diff_entry = {
+                "timestamp": datetime.now().isoformat(),
+                "command": user_input,
+                "before": before_state,
+                "after": st.session_state.json_state
+            }
+            st.session_state.history.append(diff_entry)
+        
+        # Rerun to update the UI
         st.rerun()
-    
-    # Example commands
-    with st.expander("📝 Example Commands"):
-        st.markdown("""
-        - **Update value:** "Change the prompt name to 'New Analyzer'"
-        - **Update multiple:** "Set temperature to 0.5 and max tokens to 2048"
-        - **Add key:** "Add a new field called version with value 2.0"
-        - **Delete key:** "Remove the FigmaReference field"
-        - **Rename key:** "Rename CreatedBy to Author"
-        - **Complex update:** "Change the model to gpt-4 and enable supervisory AI check"
-        """)
 
-# Right column - JSON Display
+# Right column: JSON Display
 with col2:
-    st.subheader("📋 JSON State")
+    # Create tabs for different views
+    tab1, tab2, tab3 = st.tabs(["📄 Current State", "📊 History", "🔧 Manual Edit"])
     
-    # JSON viewer
-    json_container = st.container(height=500)
-    with json_container:
-        st.json(st.session_state.json_state, expanded=True)
+    with tab1:
+        st.subheader("📄 Current JSON State")
+        
+        # Display JSON with syntax highlighting
+        json_str = json.dumps(st.session_state.json_state, indent=2)
+        st.markdown(f'<div class="json-container"><pre>{json_str}</pre></div>', unsafe_allow_html=True)
+        
+        # Download button
+        st.download_button(
+            label="📥 Download JSON",
+            data=json_str,
+            file_name=f"state_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+            mime="application/json"
+        )
     
-    # Download JSON button
-    json_str = json.dumps(st.session_state.json_state, indent=2)
-    st.download_button(
-        label="📥 Download JSON",
-        data=json_str,
-        file_name=f"state_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
-        mime="application/json"
-    )
+    with tab2:
+        st.subheader("📊 Change History")
+        
+        if st.session_state.history:
+            # Show recent changes
+            for i, entry in enumerate(reversed(st.session_state.history[-5:])):
+                with st.expander(f"Change {len(st.session_state.history) - i}: {entry['command'][:50]}..."):
+                    st.text(f"Time: {entry['timestamp']}")
+                    display_json_diff(entry['before'], entry['after'])
+        else:
+            st.info("No changes yet. Start chatting to modify the JSON!")
+    
+    with tab3:
+        st.subheader("🔧 Manual JSON Editor")
+        
+        # Text area for manual editing
+        edited_json = st.text_area(
+            "Edit JSON directly:",
+            value=json.dumps(st.session_state.json_state, indent=2),
+            height=400
+        )
+        
+        col3, col4 = st.columns(2)
+        with col3:
+            if st.button("✅ Apply Changes", use_container_width=True):
+                try:
+                    new_state = json.loads(edited_json)
+                    before_state = copy.deepcopy(st.session_state.json_state)
+                    st.session_state.json_state = new_state
+                    
+                    # Save to file
+                    state_file = Path(__file__).parent / "state.json"
+                    with open(state_file, 'w') as f:
+                        json.dump(new_state, f, indent=2)
+                    
+                    # Log the change
+                    diff_entry = {
+                        "timestamp": datetime.now().isoformat(),
+                        "command": "Manual edit",
+                        "before": before_state,
+                        "after": new_state
+                    }
+                    st.session_state.history.append(diff_entry)
+                    
+                    st.success("JSON updated successfully!")
+                    st.rerun()
+                except json.JSONDecodeError as e:
+                    st.error(f"Invalid JSON: {e}")
+        
+        with col4:
+            if st.button("🔄 Reset to Default", use_container_width=True):
+                if st.session_state.mcp_agent:
+                    # Reset through MCP
+                    asyncio.run(process_message("Reset the JSON state to empty"))
+                    st.rerun()
 
-# Diff History Section
-st.markdown("---")
-st.subheader("📊 Change History")
-
-if st.session_state.diff_history:
-    # Show latest changes
-    latest_diff = st.session_state.diff_history[-1]
+# Sidebar with examples and help
+with st.sidebar:
+    st.header("📚 Help & Examples")
     
-    col1, col2 = st.columns([2, 1])
-    with col1:
-        st.markdown(f"**Latest Change:** {latest_diff['command']}")
-        st.markdown(f"*Timestamp: {latest_diff['timestamp']}*")
+    st.subheader("Example Commands:")
+    examples = [
+        "Change the description in Overview to 'New AI Platform'",
+        "Add a new field called Version with value 2.0 to specs",
+        "Update the temperature in LLMandOutputSettings to 0.7",
+        "Delete the SecurityRules field from PromptAsConfigurableObject",
+        "Rename the field PromptName to Name in PromptMetaDataTab",
+        "Add a new object called Features with an array of features",
+        "Change CreatedBy to 'John Doe'",
+        "Update the model in LLMandOutputSettings to gpt-4-turbo"
+    ]
     
-    with col2:
-        if st.button("🗑️ Clear History"):
-            st.session_state.diff_history = []
+    for example in examples:
+        if st.button(f"💡 {example[:40]}...", key=f"ex_{example[:20]}", use_container_width=True):
+            # Process the example command
+            st.session_state.messages.append({"role": "user", "content": example})
+            response = asyncio.run(process_message(example))
+            st.session_state.messages.append({"role": "assistant", "content": response})
             st.rerun()
     
-    # Display formatted diff
-    with st.expander("View Changes", expanded=True):
-        st.markdown(format_diff(latest_diff['diff']))
+    st.divider()
     
-    # Full history
-    if len(st.session_state.diff_history) > 1:
-        with st.expander(f"Full History ({len(st.session_state.diff_history)} changes)"):
-            for i, diff in enumerate(reversed(st.session_state.diff_history[:-1]), 1):
-                st.markdown(f"**{i}. {diff['command']}** - *{diff['timestamp']}*")
-                st.markdown(format_diff(diff['diff']))
-                st.markdown("---")
-else:
-    st.info("No changes yet. Start chatting to modify the JSON state!")
+    st.subheader("🔧 Controls")
+    
+    if st.button("🗑️ Clear Chat History", use_container_width=True):
+        st.session_state.messages = []
+        if st.session_state.mcp_agent:
+            st.session_state.mcp_agent.clear_conversation_history()
+        st.rerun()
+    
+    if st.button("🔄 Reset JSON to Default", use_container_width=True):
+        # Reset to the original example JSON
+        st.session_state.json_state = {
+            "specs": {
+                "Overview": {
+                    "description": "Pivotly Prompt enables structured use of generative AI within workflows using configurable prompt templates, variables, and model settings."
+                },
+                "PromptConfiguration": {
+                    "type": ["ReusablePrompt", "InlinePrompt"],
+                    "usage": "Define and manage prompts with variables, formatting, and AI model parameters."
+                }
+            }
+        }
+        state_file = Path(__file__).parent / "state.json"
+        with open(state_file, 'w') as f:
+            json.dump(st.session_state.json_state, f, indent=2)
+        st.rerun()
+    
+    st.divider()
+    
+    st.info("""
+    **How it works:**
+    1. Type natural language commands in the chat
+    2. AI interprets and executes JSON operations via MCP
+    3. The JSON state updates automatically
+    4. All changes are logged with diffs
+    """)
+
+# Cleanup on app close
+def cleanup():
+    """Clean up MCP connections"""
+    if st.session_state.mcp_client and st.session_state.mcp_client.sessions:
+        asyncio.run(st.session_state.mcp_client.close_all_sessions())
 
 # Footer
-st.markdown("---")
-st.caption("Built with Streamlit, MCP, and OpenAI")
+st.divider()
+st.markdown("Built with Streamlit + MCP + OpenAI | Real-time JSON state management through natural language")

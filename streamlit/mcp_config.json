@@ -1,7 +1,15 @@
 {
-  "json_server": {
-    "command": "python",
-    "args": ["-m", "streamlit.json_mcp_server"],
-    "cwd": "/home/ahmed/Projects/MCP/mcp-poc"
+  "mcpServers": {
+    "json_state": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--with",
+        "mcp[cli]",
+        "mcp",
+        "run",
+        "/home/ahmed/Projects/MCP/mcp-poc/streamlit/json_state_server.py"
+      ]
+    }
   }
 }
