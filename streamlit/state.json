@@ -5,7 +5,7 @@
     },
     "Settings": {
       "temperature": 0.3,
-      "model": "gpt-4"
+      "model": "gpt-5"
     },
     "schema": "Rafi"
   }
