@@ -8,7 +8,7 @@
         "mcp[cli]",
         "mcp",
         "run",
-        "/home/ahmed/Projects/MCP/mcp-poc/streamlit/json_state_server.py"
+        "/home/sol-73/Niloy/My_git/mcp-poc/streamlit/json_state_server.py"
       ]
     }
   }

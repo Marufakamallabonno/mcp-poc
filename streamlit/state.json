@@ -1,12 +1,9 @@
 {
   "specs": {
     "Overview": {
-      "description": "Pivotly Prompt enables structured use of generative AI"
+      "description": "New AI Platform"
     },
-    "Settings": {
-      "temperature": 0.3,
-      "model": "gpt-5"
-    },
-    "schema": "Rafi"
+    "VersionNumber": "1.0",
+    "Version": 2.0
   }
 }

@@ -62,4 +62,4 @@ echo "🌐 Starting Streamlit app..."
 echo "=================================="
 
 # Run the Streamlit app
-streamlit run chat_app.py --server.port 8501 --server.address localhost
+streamlit run chat_app_v2.py --server.port 8501 --server.address localhost
