@@ -4,6 +4,7 @@ Streamlit Chat UI with MCP JSON State Management
 Following the pattern from client.py and expense_tracker.py
 """
 
+from time import sleep
 import streamlit as st
 import json
 import asyncio
@@ -11,7 +12,7 @@ import os
 from pathlib import Path
 from datetime import datetime
 import copy
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 import nest_asyncio
 from dotenv import load_dotenv
 
@@ -22,7 +23,7 @@ from mcp_use import MCPAgent, MCPClient
 
 # LLM imports
 from langchain_openai import ChatOpenAI
-from langchain.schema import HumanMessage, SystemMessage, AIMessage
+# from langchain.schema import HumanMessage, SystemMessage, AIMessage  # Unused - using MCPAgent instead
 
 # Apply nest_asyncio to allow asyncio in Streamlit
 nest_asyncio.apply()
@@ -46,10 +47,28 @@ st.markdown("""
         color: #d4d4d4;
         padding: 20px;
         border-radius: 10px;
-        font-family: 'Courier New', monospace;
+        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', monospace;
         font-size: 14px;
         max-height: 600px;
         overflow-y: auto;
+        line-height: 1.6;
+    }
+    .json-key {
+        color: #9cdcfe;
+        font-weight: 500;
+    }
+    .json-string {
+        color: #ce9178;
+    }
+    .json-number {
+        color: #b5cea8;
+    }
+    .json-boolean {
+        color: #569cd6;
+    }
+    .json-null {
+        color: #569cd6;
+        font-style: italic;
     }
     .chat-message {
         padding: 10px;
@@ -148,7 +167,7 @@ async def call_mcp_tool(tool_name: str, arguments: Dict[str, Any]) -> Dict[str, 
                     # Try to parse as JSON if possible
                     try:
                         return json.loads(content)
-                    except:
+                    except json.JSONDecodeError:
                         return {"result": content}
                 return {"error": "No result returned"}
                 
@@ -259,12 +278,88 @@ async def process_with_llm_and_mcp(user_input: str) -> str:
     )
     
     response = await agent.run(user_input)
+    
+    # Check if the response contains updated JSON state
+    # Try to extract JSON from the response if it's there
+    try:
+        # Look for JSON in the response
+        import re
+        json_pattern = r'\{[\s\S]*\}'
+        json_matches = re.findall(json_pattern, response)
+        
+        if json_matches:
+            # Try to parse the last JSON match (most likely the updated state)
+            for json_match in reversed(json_matches):
+                try:
+                    potential_state = json.loads(json_match)
+                    # Check if this looks like our state structure
+                    if isinstance(potential_state, dict):
+                        # Check if it has the expected structure (e.g., "specs" key or similar)
+                        if any(key in potential_state for key in ["specs", "state", "data"]):
+                            st.session_state.json_state = potential_state
+                            break
+                        elif "state" in potential_state and isinstance(potential_state["state"], dict):
+                            st.session_state.json_state = potential_state["state"]
+                            break
+                        elif "result" in potential_state and isinstance(potential_state["result"], dict):
+                            st.session_state.json_state = potential_state["result"]
+                            break
+                except json.JSONDecodeError:
+                    continue
+    except Exception:
+        # If we can't extract JSON, just return the response as is
+        pass
+    
     return response
     
     
     
     
     
+
+def format_json_with_highlighting(obj, indent=0):
+    """Format JSON with HTML syntax highlighting"""
+    html_parts = []
+    spaces = "&nbsp;" * (indent * 2)
+    
+    if isinstance(obj, dict):
+        if not obj:
+            return "{}"
+        html_parts.append("{<br>")
+        items = list(obj.items())
+        for i, (key, value) in enumerate(items):
+            next_spaces = "&nbsp;" * ((indent + 1) * 2)
+            html_parts.append(f'{next_spaces}<span class="json-key">"{key}"</span>: ')
+            html_parts.append(format_json_with_highlighting(value, indent + 1))
+            if i < len(items) - 1:
+                html_parts.append(",")
+            html_parts.append("<br>")
+        html_parts.append(f"{spaces}}}")
+    elif isinstance(obj, list):
+        if not obj:
+            return "[]"
+        html_parts.append("[<br>")
+        for i, item in enumerate(obj):
+            next_spaces = "&nbsp;" * ((indent + 1) * 2)
+            html_parts.append(next_spaces)
+            html_parts.append(format_json_with_highlighting(item, indent + 1))
+            if i < len(obj) - 1:
+                html_parts.append(",")
+            html_parts.append("<br>")
+        html_parts.append(f"{spaces}]")
+    elif isinstance(obj, str):
+        escaped = obj.replace('"', '\\"').replace('\n', '\\n')
+        html_parts.append(f'<span class="json-string">"{escaped}"</span>')
+    elif isinstance(obj, (int, float)):
+        html_parts.append(f'<span class="json-number">{obj}</span>')
+    elif isinstance(obj, bool):
+        html_parts.append(f'<span class="json-boolean">{str(obj).lower()}</span>')
+    elif obj is None:
+        html_parts.append('<span class="json-null">null</span>')
+    else:
+        html_parts.append(str(obj))
+    
+    return "".join(html_parts)
 
 def display_json_diff(before: Dict, after: Dict):
     """Display the difference between two JSON states"""
@@ -305,8 +400,24 @@ def display_json_diff(before: Dict, after: Dict):
 st.title("🔄 JSON State Chat Manager")
 st.markdown("Chat with AI to modify your JSON state in real-time using MCP")
 
-# Create two columns
-col1, col2 = st.columns([1, 1])
+# Initialize column ratio in session state if not present
+if 'column_ratio' not in st.session_state:
+    # Try to load saved layout preference
+    layout_file = Path(__file__).parent / "layout_preference.json"
+    if layout_file.exists():
+        try:
+            with open(layout_file, 'r') as f:
+                saved_layout = json.load(f)
+                st.session_state.column_ratio = saved_layout.get("column_ratio", 40)
+        except (json.JSONDecodeError, IOError):
+            st.session_state.column_ratio = 40  # Default: 40% for chat, 60% for JSON
+    else:
+        st.session_state.column_ratio = 40  # Default: 40% for chat, 60% for JSON
+
+# Create two columns with adjustable ratio
+col1_ratio = st.session_state.column_ratio
+col2_ratio = 100 - col1_ratio
+col1, col2 = st.columns([col1_ratio, col2_ratio])
 
 # Left column: Chat Interface
 with col1:
@@ -360,15 +471,28 @@ with col2:
     with tab1:
         st.subheader("📄 Current JSON State")
         
-        # Display JSON
-        json_str = json.dumps(st.session_state.json_state, indent=2)
-        st.markdown(f'<div class="json-container"><pre>{json_str}</pre></div>', 
-                   unsafe_allow_html=True)
+        # Ensure json_state is a dict, not a string
+        if isinstance(st.session_state.json_state, str):
+            try:
+                st.session_state.json_state = json.loads(st.session_state.json_state)
+            except json.JSONDecodeError:
+                st.error("Invalid JSON in state")
+        
+        # Display JSON with proper formatting and syntax highlighting
+        if isinstance(st.session_state.json_state, dict):
+            # Use st.json for proper JSON display with collapsible sections
+            st.json(st.session_state.json_state, expanded=True)
+        else:
+            # Fallback to text display
+            json_str = json.dumps(st.session_state.json_state, indent=2)
+            st.markdown(f'<div class="json-container"><pre>{json_str}</pre></div>', 
+                       unsafe_allow_html=True)
         
         # Download button
+        json_download_str = json.dumps(st.session_state.json_state, indent=2)
         st.download_button(
             label="📥 Download JSON",
-            data=json_str,
+            data=json_download_str,
             file_name=f"state_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
             mime="application/json"
         )
@@ -377,39 +501,246 @@ with col2:
         st.subheader("📊 Change History")
         
         if st.session_state.history:
-            for i, entry in enumerate(reversed(st.session_state.history[-5:])):
-                with st.expander(f"Change {len(st.session_state.history) - i}: {entry['command'][:50]}..."):
-                    st.text(f"Time: {entry['timestamp']}")
+            # Add a control to show more/less history
+            history_len = len(st.session_state.history)
+            
+            # Only show slider if there's more than 1 item in history
+            if history_len > 1:
+                history_count = st.slider(
+                    "Number of changes to show:",
+                    min_value=1,
+                    max_value=min(10, history_len),
+                    value=min(5, history_len),
+                    key="history_slider"
+                )
+            else:
+                # If only 1 item, just show it without a slider
+                history_count = 1
+                st.caption("📊 Showing 1 change")
+            
+            for i, entry in enumerate(reversed(st.session_state.history[-history_count:])):
+                change_num = len(st.session_state.history) - i
+                
+                # Create an expander with better formatting
+                with st.expander(
+                    f"📝 Change #{change_num}: {entry['command'][:50]}{'...' if len(entry['command']) > 50 else ''}",
+                    expanded=(i == 0)  # Expand the most recent change
+                ):
+                    # Display metadata
+                    col1, col2 = st.columns([1, 2])
+                    with col1:
+                        st.markdown("**🕐 Time:**")
+                        st.text(entry['timestamp'])
+                    with col2:
+                        st.markdown("**💬 Command:**")
+                        st.text(entry['command'])
+                    
+                    # Display the diff
+                    st.markdown("**📊 Changes:**")
                     display_json_diff(entry['before'], entry['after'])
+                    
+                    # Option to revert to this state
+                    if st.button("⏪ Revert to this state", key=f"revert_{change_num}"):
+                        st.session_state.json_state = entry['after']
+                        st.success(f"Reverted to state from change #{change_num}")
+                        st.rerun()
         else:
-            st.info("No changes yet. Start chatting to modify the JSON!")
+            st.info("📭 No changes yet. Start chatting to modify the JSON!")
     
-    with tab3:
-        st.subheader("🔧 Manual JSON Editor")
+    with tab3:        
+        # Create two columns for editor and preview
+        edit_col1, edit_col2 = st.columns([1, 1])
         
-        edited_json = st.text_area(
-            "Edit JSON directly:",
-            value=json.dumps(st.session_state.json_state, indent=2),
-            height=400
-        )
-        
-        if st.button("✅ Apply Changes"):
+        with edit_col1:
+            st.markdown("#### 🔧 Manual JSON Editor")
+            
+            # Initialize editor content and reset counter
+            if 'editor_content' not in st.session_state:
+                st.session_state.editor_content = json.dumps(st.session_state.json_state, indent=2)
+            if 'editor_reset_counter' not in st.session_state:
+                st.session_state.editor_reset_counter = 0
+            
+            # Sync editor content with json_state if json_state was updated externally
+            # This ensures the editor always reflects the true state after chat operations
+            if 'last_json_state_hash' not in st.session_state:
+                st.session_state.last_json_state_hash = hash(json.dumps(st.session_state.json_state, sort_keys=True))
+            
+            current_hash = hash(json.dumps(st.session_state.json_state, sort_keys=True))
+            if current_hash != st.session_state.last_json_state_hash:
+                # JSON state changed externally (e.g., from chat), update editor
+                st.session_state.editor_content = json.dumps(st.session_state.json_state, indent=2)
+                st.session_state.last_json_state_hash = current_hash
+                st.session_state.editor_reset_counter += 1
+            
+            # Use reset counter to force widget refresh
+            editor_key_suffix = f"_{st.session_state.editor_reset_counter}"
+            
+            # Try to use ace editor if available, otherwise fallback to text area
             try:
-                new_state = json.loads(edited_json)
-                st.session_state.json_state = new_state
+                from streamlit_ace import st_ace
+                edited_json = st_ace(
+                    value=st.session_state.editor_content,
+                    language='json',
+                    theme='monokai',
+                    key=f'json_ace_editor{editor_key_suffix}',
+                    height=400,
+                    font_size=14,
+                    show_gutter=True,
+                    show_print_margin=True,
+                    wrap=False,
+                    auto_update=False,
+                    annotations=None
+                )
+            except ImportError:
+                # Fallback to standard text area with instructions
+                st.info("💡 Tip: Install `streamlit-ace` for a better editing experience: `pip install streamlit-ace`")
+                edited_json = st.text_area(
+                    "Edit JSON directly:",
+                    value=st.session_state.editor_content,
+                    height=400,
+                    key=f"json_editor{editor_key_suffix}",
+                    help="Edit the JSON structure directly. Make sure to maintain valid JSON syntax."
+                )
+            
+            # Update editor content when changed
+            # Note: edited_json now contains the current text in the editor
+            if edited_json != st.session_state.editor_content:
+                st.session_state.editor_content = edited_json
+            
+            # Validation and apply buttons
+            col_btn1, col_btn2, col_btn3 = st.columns([1, 1, 1])
+            
+            flag = False
+            with col_btn1:
+                if st.button("✅ Apply Changes", type="primary"):
+                    try:
+                        new_state = json.loads(edited_json, strict=True)
+                        st.session_state.json_state = new_state
+                        st.session_state.editor_content = json.dumps(new_state, indent=2)
+                        st.session_state.last_json_state_hash = hash(json.dumps(new_state, sort_keys=True))
+                        
+                        # Save to file
+                        state_file = Path(__file__).parent / "state.json"
+                        with open(state_file, 'w') as f:
+                            json.dump(new_state, f, indent=2)
+                            
+                        st.success("✅ JSON updated successfully!")
+                        sleep(1)
+                        flag = True
+                        st.rerun()
+                    except json.JSONDecodeError as e:
+                        flag = False
+                        st.error(f"❌ Invalid JSON: {e}")
+                        sleep(1)
+                    
+                if flag:
+                    st.success("✅ JSON updated successfully!")
+                    
+            with col_btn2:
+                if st.button("📐 Format JSON"):
+                    try:
+                        parsed = json.loads(edited_json)
+                        formatted = json.dumps(parsed, indent=2, sort_keys=False)
+                        st.session_state.editor_content = formatted
+                        st.session_state.editor_reset_counter += 1
+                        st.success("✅ Formatted!")
+                        st.rerun()
+                    except json.JSONDecodeError:
+                        st.error("❌ Can't format invalid JSON")
+            
+            with col_btn3:
+                if st.button("🔄 Reset"):
+                    # Reset editor content to current saved state
+                    st.session_state.editor_content = json.dumps(st.session_state.json_state, indent=2)
+                    # Increment counter to force new widget key
+                    st.session_state.editor_reset_counter += 1
+                    st.rerun()
+        
+        with edit_col2:
+            st.markdown("#### 👁️ Live Preview")
+            
+            # Try to parse and display the edited JSON
+            try:
+                preview_state = json.loads(edited_json)
                 
-                # Save to file
-                state_file = Path(__file__).parent / "state.json"
-                with open(state_file, 'w') as f:
-                    json.dump(new_state, f, indent=2)
+                # Check if it's different from current state
+                if preview_state != st.session_state.json_state:
+                    st.info("📝 Preview of changes (not saved yet)")
+                else:
+                    st.success("✅ No changes")
                 
-                st.success("JSON updated successfully!")
-                st.rerun()
+                # Display the preview with syntax highlighting
+                st.json(preview_state, expanded=True)
+                
             except json.JSONDecodeError as e:
-                st.error(f"Invalid JSON: {e}")
+                st.error("❌ Invalid JSON syntax")
+                st.code(str(e), language="text")
+                
+                # Show error location if possible
+                error_msg = str(e)
+                if "line" in error_msg.lower():
+                    st.markdown("**Error location:**")
+                    lines = edited_json.split('\n')
+                    for i, line in enumerate(lines, 1):
+                        if f"line {i}" in error_msg.lower():
+                            st.code(f"Line {i}: {line}", language="json")
 
 # Sidebar
 with st.sidebar:
+    st.header("⚙️ Settings")
+    
+    # Layout control section
+    st.subheader("📐 Layout Control")
+    
+    # Column width slider
+    new_ratio = st.slider(
+        "Chat Column Width (%)",
+        min_value=20,
+        max_value=60,
+        value=st.session_state.column_ratio,
+        step=5,
+        help="Adjust the width of the chat column (JSON column will auto-adjust)"
+    )
+    
+    # Show current ratio
+    json_ratio = 100 - new_ratio
+    st.caption(f"📊 Current: Chat {new_ratio}% | JSON {json_ratio}%")
+    
+    # Update column ratio if changed
+    if new_ratio != st.session_state.column_ratio:
+        st.session_state.column_ratio = new_ratio
+        st.rerun()
+    
+    # Quick preset buttons
+    st.markdown("**Quick Presets:**")
+    preset_col1, preset_col2, preset_col3 = st.columns(3)
+    
+    with preset_col1:
+        if st.button("📱 Compact", use_container_width=True):
+            st.session_state.column_ratio = 30
+            st.rerun()
+    
+    with preset_col2:
+        if st.button("💻 Balanced", use_container_width=True):
+            st.session_state.column_ratio = 40
+            st.rerun()
+    
+    with preset_col3:
+        if st.button("🖥️ Wide Chat", use_container_width=True):
+            st.session_state.column_ratio = 50
+            st.rerun()
+    
+    # Option to remember layout preference
+    st.markdown("**Save Preference:**")
+    if st.checkbox("Remember layout on reload", value=False, key="save_layout"):
+        # Save to a local file
+        layout_file = Path(__file__).parent / "layout_preference.json"
+        with open(layout_file, 'w') as f:
+            json.dump({"column_ratio": st.session_state.column_ratio}, f)
+        st.success("✅ Layout saved!", icon="💾")
+    
+    st.divider()
+    
     st.header("📚 Help & Examples")
     
     st.subheader("Example Commands:")

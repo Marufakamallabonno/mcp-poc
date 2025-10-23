@@ -4,6 +4,15 @@
       "description": "New AI Platform"
     },
     "VersionNumber": "1.0",
-    "Version": 2.0
-  }
+    "settings": {
+      "models": {
+        "name": "gpt 5 mini",
+        "temperature": 0.8,
+        "parameters": "30B"
+      }
+    }
+  },
+  "temperature": 0.7,
+  "model": "gpt-4.1",
+  "developedBy": "Niloy"
 }
