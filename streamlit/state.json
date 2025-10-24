@@ -1,18 +1,52 @@
 {
-  "specs": {
-    "Overview": {
-      "description": "New AI Platform"
-    },
-    "VersionNumber": "1.0",
-    "settings": {
-      "models": {
-        "name": "gpt 5 mini",
-        "temperature": 0.8,
-        "parameters": "30B"
+  "Key": "47205",
+  "LocalizedName": "Bujumbura",
+  "EnglishName": "Bujumbura",
+  "Country": {
+    "ID": "BI",
+    "LocalizedName": "Burundi",
+    "EnglishName": "Burundi"
+  },
+  "TimeZone": {
+    "Code": "CAT",
+    "Name": "Africa/Bujumbura",
+    "GmtOffset": 2,
+    "IsDaylightSaving": false
+  },
+  "GeoPosition": {
+    "Latitude": -3.37249,
+    "Longitude": 29.35607,
+    "Elevation": {
+      "Metric": {
+        "Value": 783,
+        "Unit": "m",
+        "UnitType": 5
+      },
+      "Imperial": {
+        "Value": 2568,
+        "Unit": "ft",
+        "UnitType": 0
       }
     }
   },
-  "temperature": 0.7,
-  "model": "gpt-4.1",
-  "developedBy": "Niloy"
+  "LocalObservationDateTime": "2025-07-30T10:36:00+00:00",
+  "EpochTime": 1753871760,
+  "WeatherText": "Hazy sunshine",
+  "WeatherIcon": 5,
+  "HasPrecipitation": false,
+  "IsDayTime": true,
+  "Temperature": {
+    "Metric": {
+      "Value": 27,
+      "Unit": "C",
+      "UnitType": 17
+    },
+    "Imperial": {
+      "Value": 81,
+      "Unit": "F",
+      "UnitType": 18
+    }
+  },
+  "MobileLink": "http://www.accuweather.com/en/bi/bujumbura/47205/current-weather/47205?lang=en-us",
+  "Link": "http://www.accuweather.com/en/bi/bujumbura/47205/current-weather/47205?lang=en-us"
 }

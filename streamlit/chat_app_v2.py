@@ -4,7 +4,6 @@ Streamlit Chat UI with MCP JSON State Management
 Following the pattern from client.py and expense_tracker.py
 """
 
-from time import sleep
 import streamlit as st
 import json
 import asyncio
@@ -71,18 +70,71 @@ st.markdown("""
         font-style: italic;
     }
     .chat-message {
-        padding: 10px;
-        border-radius: 10px;
-        margin-bottom: 10px;
+        padding: 12px 16px;
+        border-radius: 12px;
+        margin-bottom: 12px;
+        animation: fadeIn 0.3s ease-in;
+        transition: all 0.2s ease;
+    }
+    .chat-message:hover {
+        transform: translateY(-1px);
     }
     .user-message {
-        background-color: #2b5ce6;
-        color: white;
+        background-color: #e8f0fe;
+        color: #1a1a1a;
+        margin-left: 20%;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+        border: 1px solid #c8d7e8;
+    }
+    .user-message .timestamp {
         text-align: right;
     }
+    .user-message:hover {
+        background-color: #dde7f3;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
+    }
     .assistant-message {
-        background-color: #f0f0f0;
-        color: #333;
+        background-color: #f1f3f5;
+        color: #1a1a1a;
+        margin-right: 20%;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        border: 1px solid #e1e4e8;
+    }
+    .assistant-message:hover {
+        background-color: #e9ecef;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .timestamp {
+        font-size: 0.75em;
+        opacity: 0.7;
+        margin-bottom: 6px;
+        font-weight: 500;
+    }
+    .user-message .timestamp {
+        color: #6c757d;
+    }
+    .assistant-message .timestamp {
+        color: #6c757d;
+    }
+    .message-content {
+        line-height: 1.5;
+    }
+    .thinking-dots {
+        display: inline-block;
+    }
+    .thinking-dots::after {
+        content: '...';
+        animation: dots 1.5s steps(4, end) infinite;
+    }
+    @keyframes dots {
+        0%, 20% { content: ''; }
+        40% { content: '.'; }
+        60% { content: '..'; }
+        80%, 100% { content: '...'; }
     }
     .diff-added {
         background-color: #d4f4dd;
@@ -178,97 +230,6 @@ async def process_with_llm_and_mcp(user_input: str) -> str:
     """Process user input with LLM and execute MCP operations"""
     llm = get_llm()
     
-    # # Create system prompt with current state context
-    # current_state_context = json.dumps(st.session_state.json_state, indent=2)[:500]
-    
-#     system_prompt = f"""You are a JSON State Manager assistant. You help users modify a JSON state through natural language.
-
-# When users ask to modify JSON, interpret their intent and provide a structured response with the operation to perform.
-
-# Available operations:
-# 1. update_value: Update a value at a path (e.g., "specs.Overview.description")
-# 2. add_key: Add a new key to an object
-# 3. delete_key: Remove a key
-# 4. rename_key: Rename an existing key
-# 5. get_state: Get current state
-
-# Respond with a JSON object containing:
-# - operation: the operation to perform
-# - parameters: the parameters for the operation
-
-# Examples:
-# User: "Change the description to 'New description'"
-# Response: {{"operation": "update_value", "parameters": {{"path": "specs.Overview.description", "value": "New description"}}}}
-
-# User: "Add a Version field with value 2.0"
-# Response: {{"operation": "add_key", "parameters": {{"parent_path": "specs", "key": "Version", "value": "2.0"}}}}
-
-# User: "Delete the SecurityRules field"
-# Response: {{"operation": "delete_key", "parameters": {{"path": "specs.PromptAsConfigurableObject.SecurityRules"}}}}
-
-# User: "Show me the current state"
-# Response: {{"operation": "get_state", "parameters": {{}}}}
-
-# Current JSON structure context:
-# {current_state_context}
-
-# Always respond with valid JSON containing operation and parameters."""
-    
-    # # Get LLM response
-    # messages = [
-    #     SystemMessage(content=system_prompt),
-    #     HumanMessage(content=user_input)
-    # ]
-    
-    # try:
-    #     llm_response = llm.invoke(messages)
-    #     response_text = llm_response.content
-        
-    #     # Try to parse the LLM response as JSON
-    #     try:
-    #         operation_data = json.loads(response_text)
-    #         operation = operation_data.get("operation")
-    #         parameters = operation_data.get("parameters", {})
-            
-    #         # Execute the MCP operation
-    #         if operation == "update_value":
-    #             result = await call_mcp_tool("update_value", parameters)
-    #         elif operation == "add_key":
-    #             result = await call_mcp_tool("add_key", parameters)
-    #         elif operation == "delete_key":
-    #             result = await call_mcp_tool("delete_key", parameters)
-    #         elif operation == "rename_key":
-    #             result = await call_mcp_tool("rename_key", parameters)
-    #         elif operation == "get_state":
-    #             result = await call_mcp_tool("get_state", {})
-    #         else:
-    #             return f"Unknown operation: {operation}"
-            
-    #         # Update local state if successful
-    #         if result.get("success") and "state" in result:
-    #             st.session_state.json_state = result["state"]
-                
-    #             # Format success message
-    #             if operation == "update_value":
-    #                 return f"✅ Updated value at {parameters.get('path')}"
-    #             elif operation == "add_key":
-    #                 return f"✅ Added key '{parameters.get('key')}' to {parameters.get('parent_path', 'root')}"
-    #             elif operation == "delete_key":
-    #                 return f"✅ Deleted key at {parameters.get('path')}"
-    #             elif operation == "rename_key":
-    #                 return f"✅ Renamed key to '{parameters.get('new_name')}'"
-    #             else:
-    #                 return "✅ Operation completed successfully"
-    #         else:
-    #             return f"Operation failed: {result.get('error', 'Unknown error')}"
-                
-    #     except json.JSONDecodeError:
-    #         # If LLM didn't return valid JSON, try to help the user
-    #         return f"I understand you want to modify the JSON, but I couldn't parse the specific operation. Please be more specific about what field you want to change."
-            
-    # except Exception as e:
-    #     return f"Error processing request: {str(e)}"
-    
     client = MCPClient.from_config_file("mcp_config.json")
     agent = MCPAgent(
         llm=llm,
@@ -277,10 +238,34 @@ async def process_with_llm_and_mcp(user_input: str) -> str:
         memory_enabled=True,
     )
     
-    response = await agent.run(user_input)
+    try:
+        response = await agent.run(user_input)
+    finally:
+        # Ensure proper cleanup of the client
+        try:
+            # Close the client if it has a close method
+            if hasattr(client, 'close'):
+                await client.close()
+            elif hasattr(client, 'cleanup'):
+                await client.cleanup()
+        except Exception:
+            pass  # Ignore cleanup errors
     
-    # Check if the response contains updated JSON state
-    # Try to extract JSON from the response if it's there
+    # IMPORTANT: Always reload the state from file after MCP operations
+    # This ensures we get the latest state that the MCP server has written
+    state_file = Path(__file__).parent / "state.json"
+    if state_file.exists():
+        try:
+            with open(state_file, 'r') as f:
+                fresh_state = json.load(f)
+                # Update session state with the fresh state from file
+                st.session_state.json_state = fresh_state
+        except (json.JSONDecodeError, IOError):
+            # If file read fails, try to extract from response as fallback
+            pass
+    
+    # Also try to extract JSON from the response as a secondary method
+    # This is useful if the MCP server returns the state in the response
     try:
         # Look for JSON in the response
         import re
@@ -296,13 +281,17 @@ async def process_with_llm_and_mcp(user_input: str) -> str:
                     if isinstance(potential_state, dict):
                         # Check if it has the expected structure (e.g., "specs" key or similar)
                         if any(key in potential_state for key in ["specs", "state", "data"]):
-                            st.session_state.json_state = potential_state
+                            # Only update if we didn't already get it from file
+                            if 'fresh_state' not in locals():
+                                st.session_state.json_state = potential_state
                             break
                         elif "state" in potential_state and isinstance(potential_state["state"], dict):
-                            st.session_state.json_state = potential_state["state"]
+                            if 'fresh_state' not in locals():
+                                st.session_state.json_state = potential_state["state"]
                             break
                         elif "result" in potential_state and isinstance(potential_state["result"], dict):
-                            st.session_state.json_state = potential_state["result"]
+                            if 'fresh_state' not in locals():
+                                st.session_state.json_state = potential_state["result"]
                             break
                 except json.JSONDecodeError:
                     continue
@@ -423,45 +412,74 @@ col1, col2 = st.columns([col1_ratio, col2_ratio])
 with col1:
     st.subheader("💬 Chat Interface")
     
-    # Chat container
-    chat_container = st.container(height=500)
+    # Chat container with native Streamlit chat messages
+    chat_container = st.container(height=520)
     
     with chat_container:
         for message in st.session_state.messages:
-            if message["role"] == "user":
-                st.markdown(f'<div class="chat-message user-message">👤 {message["content"]}</div>', 
-                          unsafe_allow_html=True)
-            else:
-                st.markdown(f'<div class="chat-message assistant-message">🤖 {message["content"]}</div>', 
-                          unsafe_allow_html=True)
+            # Use Streamlit's native chat_message for proper markdown handling
+            with st.chat_message(message["role"], avatar="👤" if message["role"] == "user" else "🤖"):
+                # Add timestamp
+                if "timestamp" in message:
+                    st.caption(f"{message['timestamp']}")
+                # Display message content - Streamlit handles markdown properly
+                st.markdown(message["content"])
+        
+        # Show typing indicator if processing
+        if st.session_state.get('processing', False):
+            with st.chat_message("assistant", avatar="🤖"):
+                st.caption("Typing...")
+                st.markdown("_Thinking..._")
     
     # Chat input
-    user_input = st.chat_input("Type your command (e.g., 'Change the description to...')")
+    user_input = st.chat_input("Type your command...")
     
-    if user_input:
+    # Initialize processing state
+    if 'processing' not in st.session_state:
+        st.session_state.processing = False
+    if 'pending_message' not in st.session_state:
+        st.session_state.pending_message = None
+    
+    # Handle new user input
+    if user_input and not st.session_state.processing:
+        # Add user message immediately with timestamp
+        st.session_state.messages.append({
+            "role": "user", 
+            "content": user_input,
+            "timestamp": datetime.now().strftime("%H:%M:%S")
+        })
+        st.session_state.pending_message = user_input
+        st.session_state.processing = True
+        st.rerun()
+    
+    # Process pending message if exists
+    if st.session_state.processing and st.session_state.pending_message:
         # Store previous state
         before_state = copy.deepcopy(st.session_state.json_state)
         
-        # Add user message
-        st.session_state.messages.append({"role": "user", "content": user_input})
+        # Process the message (the typing indicator is already shown above)
+        response = asyncio.run(process_with_llm_and_mcp(st.session_state.pending_message))
         
-        # Process with LLM and MCP
-        with st.spinner("Processing..."):
-            response = asyncio.run(process_with_llm_and_mcp(user_input))
-        
-        # Add assistant response
-        st.session_state.messages.append({"role": "assistant", "content": response})
+        # Add assistant response with timestamp
+        st.session_state.messages.append({
+            "role": "assistant", 
+            "content": response,
+            "timestamp": datetime.now().strftime("%H:%M:%S")
+        })
         
         # Log changes if state changed
         if st.session_state.json_state != before_state:
             diff_entry = {
                 "timestamp": datetime.now().isoformat(),
-                "command": user_input,
+                "command": st.session_state.pending_message,
                 "before": before_state,
                 "after": st.session_state.json_state
             }
             st.session_state.history.append(diff_entry)
         
+        # Clear processing state
+        st.session_state.processing = False
+        st.session_state.pending_message = None
         st.rerun()
 
 # Right column: JSON Display
@@ -469,7 +487,22 @@ with col2:
     tab1, tab2, tab3 = st.tabs(["📄 Current State", "📊 History", "🔧 Manual Edit"])
     
     with tab1:
-        st.subheader("📄 Current JSON State")
+        # st.subheader("📄 Current JSON State")
+        
+        # Always check for the latest state from file
+        # This ensures we display the most current state
+        state_file = Path(__file__).parent / "state.json"
+        if state_file.exists():
+            try:
+                with open(state_file, 'r') as f:
+                    file_state = json.load(f)
+                    # Check if file state is different from session state
+                    if file_state != st.session_state.json_state:
+                        st.session_state.json_state = file_state
+                        # Show a subtle indicator that state was refreshed
+                        st.info("🔄 State refreshed from file", icon="ℹ️")
+            except (json.JSONDecodeError, IOError):
+                pass  # Keep using session state if file read fails
         
         # Ensure json_state is a dict, not a string
         if isinstance(st.session_state.json_state, str):
@@ -478,15 +511,17 @@ with col2:
             except json.JSONDecodeError:
                 st.error("Invalid JSON in state")
         
-        # Display JSON with proper formatting and syntax highlighting
-        if isinstance(st.session_state.json_state, dict):
-            # Use st.json for proper JSON display with collapsible sections
-            st.json(st.session_state.json_state, expanded=True)
-        else:
-            # Fallback to text display
-            json_str = json.dumps(st.session_state.json_state, indent=2)
-            st.markdown(f'<div class="json-container"><pre>{json_str}</pre></div>', 
-                       unsafe_allow_html=True)
+        # Display JSON with proper formatting and syntax highlighting in a scrollable container
+        json_container = st.container(height=520)
+        with json_container:
+            if isinstance(st.session_state.json_state, dict):
+                # Use st.json for proper JSON display with collapsible sections
+                st.json(st.session_state.json_state, expanded=True)
+            else:
+                # Fallback to text display
+                json_str = json.dumps(st.session_state.json_state, indent=2)
+                st.markdown(f'<div class="json-container"><pre>{json_str}</pre></div>', 
+                           unsafe_allow_html=True)
         
         # Download button
         json_download_str = json.dumps(st.session_state.json_state, indent=2)
@@ -551,6 +586,10 @@ with col2:
         # Create two columns for editor and preview
         edit_col1, edit_col2 = st.columns([1, 1])
         
+        # Track the current editor session
+        if 'editor_session_id' not in st.session_state:
+            st.session_state.editor_session_id = 0
+        
         with edit_col1:
             st.markdown("#### 🔧 Manual JSON Editor")
             
@@ -588,7 +627,7 @@ with col2:
                     show_gutter=True,
                     show_print_margin=True,
                     wrap=False,
-                    auto_update=False,
+                    auto_update=True,  # Changed to True for immediate updates
                     annotations=None
                 )
             except ImportError:
@@ -602,44 +641,68 @@ with col2:
                     help="Edit the JSON structure directly. Make sure to maintain valid JSON syntax."
                 )
             
-            # Update editor content when changed
-            # Note: edited_json now contains the current text in the editor
-            if edited_json != st.session_state.editor_content:
-                st.session_state.editor_content = edited_json
+            # Always update editor content with the current value
+            # This ensures we have the latest content from the editor
+            st.session_state.editor_content = edited_json
+            
+            # Show save status message if exists
+            if st.session_state.get('save_message'):
+                st.success(st.session_state.save_message)
+                # Clear the message after displaying
+                del st.session_state.save_message
             
             # Validation and apply buttons
             col_btn1, col_btn2, col_btn3 = st.columns([1, 1, 1])
             
-            flag = False
             with col_btn1:
                 if st.button("✅ Apply Changes", type="primary"):
                     try:
-                        new_state = json.loads(edited_json, strict=True)
-                        st.session_state.json_state = new_state
-                        st.session_state.editor_content = json.dumps(new_state, indent=2)
-                        st.session_state.last_json_state_hash = hash(json.dumps(new_state, sort_keys=True))
+                        # Use the current editor content from session state
+                        # This ensures we have the latest typed content
+                        current_content = st.session_state.editor_content
+                        new_state = json.loads(current_content, strict=True)
                         
-                        # Save to file
-                        state_file = Path(__file__).parent / "state.json"
-                        with open(state_file, 'w') as f:
-                            json.dump(new_state, f, indent=2)
+                        # Check if there are actual changes
+                        old_state = st.session_state.json_state.copy()
+                        
+                        if old_state != new_state:
+                            # Update the state
+                            st.session_state.json_state = new_state
+                            st.session_state.editor_content = json.dumps(new_state, indent=2)
+                            st.session_state.last_json_state_hash = hash(json.dumps(new_state, sort_keys=True))
                             
-                        st.success("✅ JSON updated successfully!")
-                        sleep(1)
-                        flag = True
-                        st.rerun()
+                            # Save to file
+                            state_file = Path(__file__).parent / "state.json"
+                            with open(state_file, 'w') as f:
+                                json.dump(new_state, f, indent=2)
+                            
+                            # Log the change to history
+                            diff_entry = {
+                                "timestamp": datetime.now().isoformat(),
+                                "command": "Manual edit",
+                                "before": old_state,
+                                "after": new_state
+                            }
+                            st.session_state.history.append(diff_entry)
+                            
+                            # Mark that we just saved
+                            st.session_state.just_saved = True
+                            st.session_state.save_message = "✅ JSON saved successfully!"
+                            
+                            # Trigger a rerun to update the UI state
+                            st.rerun()
+                        else:
+                            st.info("ℹ️ No changes to save")
                     except json.JSONDecodeError as e:
-                        flag = False
                         st.error(f"❌ Invalid JSON: {e}")
-                        sleep(1)
-                    
-                if flag:
-                    st.success("✅ JSON updated successfully!")
+                        st.caption("Please fix the JSON syntax errors before applying changes.")
                     
             with col_btn2:
                 if st.button("📐 Format JSON"):
                     try:
-                        parsed = json.loads(edited_json)
+                        # Use current content from session state
+                        current_content = st.session_state.editor_content
+                        parsed = json.loads(current_content)
                         formatted = json.dumps(parsed, indent=2, sort_keys=False)
                         st.session_state.editor_content = formatted
                         st.session_state.editor_reset_counter += 1
@@ -659,104 +722,86 @@ with col2:
         with edit_col2:
             st.markdown("#### 👁️ Live Preview")
             
-            # Try to parse and display the edited JSON
-            try:
-                preview_state = json.loads(edited_json)
+            # Show save status if just saved
+            if st.session_state.get('just_saved', False):
+                st.success("✅ Changes saved to file!")
+                st.session_state.just_saved = False
+            
+            # Create a container for the preview
+            preview_container = st.container()
+            
+            with preview_container:
+                # Try to parse and display the edited JSON
+                try:
+                    # ALWAYS show what's currently in the editor
+                    # Use the session state which has the latest content
+                    preview_state = json.loads(st.session_state.editor_content)
+                    
+                    # Show status based on whether content matches saved state
+                    if preview_state != st.session_state.json_state:
+                        # There are unsaved changes
+                        st.warning("⚠️ Unsaved changes")
+                        st.caption("Click 'Apply Changes' to save these changes to file")
+                    else:
+                        # Content matches saved state
+                        st.success("✅ In sync with saved file")
+                        st.caption("Editor content matches the saved state")
+                    
+                    # Always display what's in the editor - this is the live preview
+                    st.markdown("**Current editor content:**")
+                    st.json(preview_state, expanded=True)
+                    
+                    # Show a diff if there are unsaved changes
+                    if preview_state != st.session_state.json_state:
+                        with st.expander("📊 What will change when you save", expanded=False):
+                            st.markdown("**Differences from saved file:**")
+                            display_json_diff(st.session_state.json_state, preview_state)
                 
-                # Check if it's different from current state
-                if preview_state != st.session_state.json_state:
-                    st.info("📝 Preview of changes (not saved yet)")
-                else:
-                    st.success("✅ No changes")
-                
-                # Display the preview with syntax highlighting
-                st.json(preview_state, expanded=True)
-                
-            except json.JSONDecodeError as e:
-                st.error("❌ Invalid JSON syntax")
-                st.code(str(e), language="text")
-                
-                # Show error location if possible
-                error_msg = str(e)
-                if "line" in error_msg.lower():
-                    st.markdown("**Error location:**")
-                    lines = edited_json.split('\n')
-                    for i, line in enumerate(lines, 1):
-                        if f"line {i}" in error_msg.lower():
-                            st.code(f"Line {i}: {line}", language="json")
+                except json.JSONDecodeError as e:
+                    st.error("❌ Invalid JSON syntax - cannot preview")
+                    st.code(str(e), language="text")
+                    
+                    # Show error location if possible
+                    error_msg = str(e)
+                    if "line" in error_msg.lower():
+                        st.markdown("**Error location in editor:**")
+                        lines = st.session_state.editor_content.split('\n')
+                        for i, line in enumerate(lines, 1):
+                            if f"line {i}" in error_msg.lower():
+                                st.code(f"Line {i}: {line}", language="json")
+                                break
 
 # Sidebar
 with st.sidebar:
-    st.header("⚙️ Settings")
-    
-    # Layout control section
-    st.subheader("📐 Layout Control")
-    
-    # Column width slider
-    new_ratio = st.slider(
-        "Chat Column Width (%)",
-        min_value=20,
-        max_value=60,
-        value=st.session_state.column_ratio,
-        step=5,
-        help="Adjust the width of the chat column (JSON column will auto-adjust)"
-    )
-    
-    # Show current ratio
-    json_ratio = 100 - new_ratio
-    st.caption(f"📊 Current: Chat {new_ratio}% | JSON {json_ratio}%")
+    new_ratio = 30
     
     # Update column ratio if changed
     if new_ratio != st.session_state.column_ratio:
-        st.session_state.column_ratio = new_ratio
+        st.session_state.column_ratio = 30
         st.rerun()
-    
-    # Quick preset buttons
-    st.markdown("**Quick Presets:**")
-    preset_col1, preset_col2, preset_col3 = st.columns(3)
-    
-    with preset_col1:
-        if st.button("📱 Compact", use_container_width=True):
-            st.session_state.column_ratio = 30
-            st.rerun()
-    
-    with preset_col2:
-        if st.button("💻 Balanced", use_container_width=True):
-            st.session_state.column_ratio = 40
-            st.rerun()
-    
-    with preset_col3:
-        if st.button("🖥️ Wide Chat", use_container_width=True):
-            st.session_state.column_ratio = 50
-            st.rerun()
-    
-    # Option to remember layout preference
-    st.markdown("**Save Preference:**")
-    if st.checkbox("Remember layout on reload", value=False, key="save_layout"):
-        # Save to a local file
-        layout_file = Path(__file__).parent / "layout_preference.json"
-        with open(layout_file, 'w') as f:
-            json.dump({"column_ratio": st.session_state.column_ratio}, f)
-        st.success("✅ Layout saved!", icon="💾")
-    
-    st.divider()
     
     st.header("📚 Help & Examples")
     
     st.subheader("Example Commands:")
     examples = [
-        "Change the description to 'New AI Platform'",
-        "Add a Version field with value 2.0 to specs",
-        "Update the temperature to 0.7",
-        "Delete the model field",
-        "Show me the current state"
+        "Show me the current state",
+        "Update the Temperature.Metric.Value to 30",
+        "Change the Country.ID to US",
+        "Modify HasPercipitation to true",
+        "Delete GeoPosition.Elevation.UnitType"
     ]
     
     for example in examples:
         if st.button(f"💡 {example}", key=f"ex_{example[:20]}"):
-            st.session_state.messages.append({"role": "user", "content": example})
-            response = asyncio.run(process_with_llm_and_mcp(example))
-            st.session_state.messages.append({"role": "assistant", "content": response})
+            # Add the example as a user message with timestamp
+            st.session_state.messages.append({
+                "role": "user", 
+                "content": example,
+                "timestamp": datetime.now().strftime("%H:%M:%S")
+            })
+            # Set up for processing
+            st.session_state.pending_message = example
+            st.session_state.processing = True
             st.rerun()
     
     st.divider()
