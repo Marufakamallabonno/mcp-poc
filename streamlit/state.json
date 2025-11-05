@@ -4,7 +4,7 @@
   "EnglishName": "Bujumbura",
   "Country": {
     "ID": "BI",
-    "LocalizedName": "Burundi",
+    "LocalizedName": "Canada",
     "EnglishName": "Burundi"
   },
   "TimeZone": {
@@ -18,7 +18,7 @@
     "Longitude": 29.35607,
     "Elevation": {
       "Metric": {
-        "Value": 783,
+        "Value": 900,
         "Unit": "m",
         "UnitType": 5
       },
@@ -34,12 +34,11 @@
   "WeatherText": "Hazy sunshine",
   "WeatherIcon": 5,
   "HasPrecipitation": false,
-  "IsDayTime": true,
+  "IsDayTime": false,
   "Temperature": {
     "Metric": {
-      "Value": 27,
-      "Unit": "C",
-      "UnitType": 17
+      "Value": 30,
+      "Unit": "C"
     },
     "Imperial": {
       "Value": 81,
