@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "graph_plotter": {
+      "command": "python",
+      "args": ["server/graph_plotter.py"],
+      "env": {
+        "PIVOTLY_AZURE_OPENAI_API_KEY": "${PIVOTLY_AZURE_OPENAI_API_KEY}",
+        "PIVOTLY_AZURE_OPENAI_ENDPOINT": "${PIVOTLY_AZURE_OPENAI_ENDPOINT}"
+      }
+    }
+  }
+}
